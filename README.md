@@ -42,7 +42,29 @@ currently it is set to quite high values.
   On attiny8 one should use LOW_MEMORY_VERSION which cuts some corners, like collects data once per 2 minutes to allow
   120minutes of data collected. This allows charging at very slow rates, with good thermal insulation 100mA is possible. 
   For tabletop with crude battery holder and open box,  200mA is recommended minimum. 
+
+*   USE_NTC_SERIES_SKEW option allows to 'fine tune' values of series resistors of NTC thermistors.
+As it is difficult to get small tolerance thermistors and their series resistors, one can just use 
+whatever is in the junk box, and then adjust to the real value by using this option. 
+
+*  //#define KALMAN_AUTOSKEW 
+  if You uncomment that, while USE_NTC_SERIES_SKEW option is also active, and You have LCD display enabled,
+  device will try to find values of resistors automatically , assuming ambient NTC sensor is the reference. 
+  It will also output temperature values to serial output , so You can use arduino plotter to see the offsets.
   
+ after inputting estimated values into program, You can use KALMAN_AUTOSKEW_FREEZE to test Your values, 
+ and checking on serial plotter how kalman filter converges after reset , heating up of sensors, choosing various thermal
+ masses etc. etc. 
+
+* main loop is considerably faster, most routines use 10bit ADC reads, and more detailed reads are used only for stats
+ and averaging, each 5sec. this way PWM regulation is more responsive. 
+ 
+* example graphing scripts using gnuplot thrown in as bonus. They have some quirks and are not idiotproof. 
+ use if You know what they actually do. 
+
+Sketch uses 13832 bytes (42%) of program storage space. Maximum is 32256 bytes.
+Global variables use 1712 bytes (83%) of dynamic memory, leaving 336 bytes for local variables. Maximum is 2048 bytes.
+ 
   It is recommended to match thermal mass of ambient temp. sensor to thermal mass of batteries, f.e. use dummy battery
   glued to sensor. In future versions I will try to implement some better heuristics and additional 
   'outside of the box' sensor to adjust Kalman gain depending on "forecasted" temperature changes. 
