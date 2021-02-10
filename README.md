@@ -12,6 +12,14 @@ There are many fixes and changes, to sum it up :
 This way temperature of each cell is difference inbetween ambient and batt temp.
 This, plus removing spurious noise by usage of Kalman filter , allows to detect delta as small as 2C, 
 allowing to charge even old, small capacity AAA batteries with high internal resistance. 
+* extended Vbat resolution by using 1.1V internal reference for Vbat reading. 
+ to switch inbetween internal 1.1 and 5V Vcc , extra boolean is passed to ReadMultiDecimated. 
+ default is 'false' 
+  static uint16_t ReadMultiDecimated(uint8_t pin, uint8_t bits = 16, bool vref_internal = false) {
+
+This allows more robust -deltaV detection. 
+Note that this also requires voltage divider being used, so for stand-alone devices it's better to revert to 
+direct method, or using uC with 2.56V internal reference. 
 
 * Analog knob allowing setting up charge current. 
 changing current changes total timeout value aswell, so slow charging will not trip timeout protection prematurely. 
@@ -62,6 +70,10 @@ whatever is in the junk box, and then adjust to the real value by using this opt
 * example graphing scripts using gnuplot thrown in as bonus. They have some quirks and are not idiotproof. 
  use if You know what they actually do. 
 
+* NTC library implemented as function to save memory. It is not as linear and pretty as other NTC solutons,
+and is source of quite large error if ntc series resistors are very off . 
+Keeping NTC series resistors in similiar value range is good practice. 
+
 Sketch uses 13832 bytes (42%) of program storage space. Maximum is 32256 bytes.
 Global variables use 1712 bytes (83%) of dynamic memory, leaving 336 bytes for local variables. Maximum is 2048 bytes.
  
@@ -74,6 +86,27 @@ Global variables use 1712 bytes (83%) of dynamic memory, leaving 336 bytes for l
   
   if someone plans to build ultra fast charger basing on that, it should be easy, 
   in this case small fan is recommended to avoid detecting heating up of batteries due to high current . 
+  
+  It is still work in progress, there is still loads to do.
+  Some TODO :
+  * implementing sleep mode and input voltage detection, evaluation, heuristics, some sort of clock or timer, etc.
+   this is really vague subject, it depends on application - solar charger, wind charger, sattelite, radio repeater etc, 
+   all have different requirements. Some basic hooks could be implemented though , like ability to recieve commands
+   like waking on interrupt and initiating start of charge by 'button press' event (or signal from another micro),
+   responding to commands over serial port, telemetry. 
+  * state of charge heuristics
+  * balancing of cells instead of idling after end of charge 
+  (measuring open circuit voltage and balancing cells to have equal SOC by mere coloumb counting method)
+  * multi-cell version ("battery pack" where all cells are in series and only deltaT is detected on individual cells)
+  * code cleanup
+  * non linear shunt resistor element, or other way to detect small current - for power saving.
+   while knowing accurate current is usefull for estimation of mAh gone into cell, it is not really needed for charging. 
+   
+  Few hardware design hints :
+ * analog inputs do not need any filtering nor capacitors - actually it makes things worse.
+ * 5V supply voltage regulation and filtering is most important for clean signals,
+  for charge rate over 200mA this does not matter too much. Capacitors, coils, good voltage regulator and care to filter
+  noise around switching mosfets make most effect on getting clean temperature, voltage and current readings. 
   
   Have fun. 
   
