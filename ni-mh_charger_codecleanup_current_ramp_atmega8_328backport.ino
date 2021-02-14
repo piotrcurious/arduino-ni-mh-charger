@@ -1204,8 +1204,8 @@ class BatteryCharger {
               //minute_ts = now_ts + 60000;// - (now_ts - minute_ts);
               minute_ts += MINUTE_TS_REAL;
               
-#ifdef USE_FAN_AMBIENT // do not calculate temperature slope until we get enough recent averages. 
-              if (now_ts > STARTUP_FAN_TIMEOUT + minute_ts*4) {
+#ifdef USE_FAN_AMBIENT // do not calculate temperature slope until we get enough recent averages - another 10 minutes of dead time. 
+              if (now_ts > (STARTUP_FAN_TIMEOUT*2)) {
               temperature_slope = temperature_avg - temperature_last;
               }
 #endif USE_FAN_AMBIENT
@@ -1213,6 +1213,7 @@ class BatteryCharger {
 #ifndef USE_FAN_AMBIENT
               temperature_slope = temperature_avg - temperature_last;
 #endif USE_FAN_AMBIENT
+
 
               temperature_last = temperature_avg;
 
