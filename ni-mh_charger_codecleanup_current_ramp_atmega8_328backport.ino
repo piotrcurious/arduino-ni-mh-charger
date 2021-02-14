@@ -58,6 +58,9 @@
 #define LCD_VERBOSE //-550B enabling it will display more messages on LCD . otherwise just bare minimum is included . 
 #define USE_LCD //-1900B decide wheter to use LCD at all. 
 
+#define USE_FAN_AMBIENT // use simple code to control one , 'ambient' fan , turning on when ambient temp swings too much.
+                        // thus equalizing temperature of the cells.  
+
 //#define USE_KALMAN_FOR_TEMPERATURE // wheter use kalman filter for temperature reading. allows lowering deltaT detection 
                                       // uses 256 bytes of PROGMEM and 32 bytes of RAM
   // !use either kalman or dynamic kalman, or none. You cannot use "both". 
@@ -79,7 +82,7 @@
 
                           
 #ifdef USE_CUSTOM_PWM
-static const uint16_t PWM_MAX_VALUE = 32768; //define max value of PWM 
+static const uint16_t PWM_MAX_VALUE = 1024; //define max value of PWM 
   // 512 max counter                , 32Khz frequency // fixme - those values are certainly wrong...
   // 1024  as the max counter value, 16Khz frequency
   // 16385 as the max counter value, 1Khz frequency
@@ -145,6 +148,11 @@ static const byte I_BAT0 = A6;
 static const byte I_BAT1 = A7;
 static const byte NTC0 = A3;
 static const byte NTC1 = A2;
+#ifdef USE_FAN_AMBIENT
+static const byte FAN_AMBIENT = 3 ; // fan used to equalize temperature
+static uint8_t fan_ambient_state ; // state of the fan , updated in main loop, set by other routines
+static const uint32_t STARTUP_FAN_TIMEOUT = 600000 ; // 10 minutes, fan cooling time after inserting new battery to equalize it's temperature. 
+#endif USE_FAN_AMBIENT 
 
 #ifdef USE_NTC_SERIES_SKEW  
 //#define KALMAN_AUTOSKEW // if defined, only routine performing autoskew is executed instead of everything else
@@ -157,12 +165,12 @@ static const byte NTC1 = A2;
 //static float NTC_skew[2]= {1234,690}; // ntc series resistor skew, by ID-1
 //static float NTC_skew[2]= {1250,720}; // ntc series resistor skew, by ID-1
 //static float NTC_skew[2]= {1266,674}; // ntc series resistor skew, by ID-1
-static float NTC_skew[2]= {1450,983}; // ntc series resistor skew, by ID-1
+static float NTC_skew[2]= {1150,453}; // ntc series resistor skew, by ID-1 // NOTE THIS VARIABLE IS ONLY USED DURING AUTOSKEW PHASE. COPY YOUR FOUND VALUSE TO STATIC CONST BELOW!
 //static float NTC_skew[2]= {1251,869}; // ntc series resistor skew, by ID-1
 
 #endif KALMAN_AUTOSKEW
 #ifndef KALMAN_AUTOSKEW // if autoskew is off, resistor values are stored permanently in progmem. 
-static const int16_t NTC_skew[2]= {1450,983}; // ntc series resistor skew, by ID-1
+static const int16_t NTC_skew[2]= {1150,453}; // ntc series resistor skew, by ID-1 // this is autoskew value normally used. put Your final values here. 
 #endif KALMAN_AUTOSKEW
 
 #endif USE_NTC_SERIES_SKEW
@@ -170,6 +178,7 @@ static const uint8_t  NTC_ambient       = A4;
 #ifdef USE_NTC_SERIES_SKEW
 static const int16_t NTC_ambient_skew = 0 ; // ntc_ambient series resistor skew (global)
 #endif USE_NTC_SERIES_SKEW
+
 static const uint8_t  CHARGE_RATE_KNOB  = A5;  
 
 //static const uint32_t NTC_SERIES_RESISTOR = 3*9660; 
@@ -456,8 +465,13 @@ class BatteryCharger {
           case 2: {
             // waiting for temperature and voltage to stabilize
             end_ts = millis() + STABILIZATION_PERIOD;
+#ifdef USE_FAN_AMBIENT
+              fan_ambient_state = 255; 
+#endif USE_FAN_AMBIENT
+
             state = 3;
             break;
+
           }
   
           case 3: {
@@ -1177,13 +1191,29 @@ class BatteryCharger {
 //              break;
 //            }
 
+#ifndef USE_FAN_AMBIENT //  if not using ambient fan
             if (now_ts > minute_ts) { // one minute elapsed. 
+#endif USE_FAN_AMBIENT 
+#ifdef USE_FAN_AMBIENT
+            if ((now_ts > minute_ts) && (now_ts > STARTUP_FAN_TIMEOUT)) { // one minute elapsed, and we are past initial startup fan cooling phase             
+#endif USE_FAN_AMBIENT
+
 //             temperature = SimpleKalmanTemperature.updateEstimate(ntcTemperatureC(ReadMultiDecimated(pin_tbat,14),16384) - ntcTemperatureC(ReadMultiDecimated(NTC_ambient,14),16384));
 //not really used now, as we use average anyway... 
               // time for stats gathering
               //minute_ts = now_ts + 60000;// - (now_ts - minute_ts);
               minute_ts += MINUTE_TS_REAL;
+              
+#ifdef USE_FAN_AMBIENT // do not calculate temperature slope until we get enough recent averages. 
+              if (now_ts > STARTUP_FAN_TIMEOUT + minute_ts*4) {
               temperature_slope = temperature_avg - temperature_last;
+              }
+#endif USE_FAN_AMBIENT
+
+#ifndef USE_FAN_AMBIENT
+              temperature_slope = temperature_avg - temperature_last;
+#endif USE_FAN_AMBIENT
+
               temperature_last = temperature_avg;
 
               if (current_current < current_target) { 
@@ -1205,6 +1235,11 @@ class BatteryCharger {
                 temperature_slope_sequence[i] = temperature_slope_sequence[i + 1];
               }
               temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH-1] = temperature_slope;
+#ifdef USE_FAN_AMBIENT
+              if (now_ts > STARTUP_FAN_TIMEOUT) {
+              fan_ambient_state = 0; 
+               }
+#endif USE_FAN_AMBIENT
               
               if ( (bCorrectSequence) > MAX_CUMULATIVE_TEMPERATURE_INCREASE  ) {      // if temperature slopes on average exceed predefined delta.  
                 // a steady growing temperature slope
@@ -1655,11 +1690,11 @@ class BatteryCharger {
         /// reads and accumulates multiple samples and decimates the result -1.1V VREF 
     static uint16_t ReadMultiDecimated(uint8_t pin, uint8_t bits = 16, bool vref_internal = false) {
       if (vref_internal){
-      analogReference(INTERNAL); // switch to 1.1V internal reference     
-      } 
+      analogReference(INTERNAL); // switch to 1.1V internal reference      
       analogRead(pin);
       delay(6);
       analogRead(pin);
+      }
       uint32_t total = 0;
 
       bits -= 10;
@@ -1796,7 +1831,7 @@ static constexpr float k    = 1;
   static constexpr float  I    = 1;
 
 #ifndef KALMAN_AUTOSKEW
-  float Rk[3] = {0.5,1,1}; // process covariance for each filter, initial values       
+  float Rk[3] = {0.5,1.5,1.0}; // process covariance for each filter, initial values       
 #endif KALMAN_AUTOSKEW
 #ifdef KALMAN_AUTOSKEW // we make it longer for autoskew convergence as it's too chaotic
   float Rk[3] = {0.5,1,0.5}; // process covariance for each filter, initial values       
@@ -1808,7 +1843,7 @@ static constexpr float k    = 1;
 
 // 4 = delta of outside box (ambient) and inside box //fixme (currently not implemented, requires extra analog input -stm32 port and above)
 #ifndef KALMAN_AUTOSKEW
-  float Qk[3] = {0.00001,0.00001,0.001}; // measurement covariance for each filter, initial values
+  float Qk[3] = {0.0001,0.00001,0.001}; // measurement covariance for each filter, initial values
 #endif KALMAN_AUTOSKEW
 #ifdef KALMAN_AUTOSKEW
   float Qk[3] = {0.000001,0.00001,0.1}; // measurement covariance for each filter, initial values
@@ -1920,7 +1955,11 @@ void setup() {
   pinMode(I_BAT0, INPUT);
   pinMode(I_BAT1, INPUT);
   pinMode(CHARGE_RATE_KNOB,INPUT);
-  
+
+#ifdef USE_FAN_AMBIENT
+  analogWrite(FAN_AMBIENT,0);
+#endif USE_FAN_AMBIENT
+
 #ifdef USE_CUSTOM_PWM
   pinMode(CH_PWM0,OUTPUT);
   digitalWrite(CH_PWM0,LOW);
@@ -1987,6 +2026,11 @@ void setup() {
 #endif USE_LCD
 #endif KNOB_HIGH_PRECISION
 
+#ifdef USE_FAN_AMBIENT
+  fan_ambient_state = 255;
+#endif USE_FAN_AMBIENT
+
+
 //Serial.println(F("T1 T2 Tamb"));
 }
 
@@ -2005,6 +2049,9 @@ void loop()  {
   charger_1.Execute();
   charger_0.Execute();
   charger_1.Execute();
+#ifdef USE_FAN_AMBIENT
+  analogWrite(FAN_AMBIENT,fan_ambient_state);
+#endif USE_FAN_AMBIENT
   
 #ifdef KNOB_HIGH_PRECISION
   set_current = (float)map(analogRead(CHARGE_RATE_KNOB), 0, 1024, (0.1*1000),(I_HIGH_CURRENT_CHARGING*1000)) /1000; 
