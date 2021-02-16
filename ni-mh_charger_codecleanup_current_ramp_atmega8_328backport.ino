@@ -151,7 +151,8 @@ static const byte NTC1 = A2;
 #ifdef USE_FAN_AMBIENT
 static const byte FAN_AMBIENT = 3 ; // fan used to equalize temperature
 static uint8_t fan_ambient_state ; // state of the fan , updated in main loop, set by other routines
-static const uint32_t STARTUP_FAN_TIMEOUT = 600000 ; // 10 minutes, fan cooling time after inserting new battery to equalize it's temperature. 
+//static const uint32_t STARTUP_FAN_TIMEOUT = 600000 ; // 10 minutes, fan cooling time after inserting new battery to equalize it's temperature. 
+                                                        // no longer used, switched to end_ts/100 , approx 12.5 minutes @ 189mA
 #endif USE_FAN_AMBIENT 
 
 #ifdef USE_NTC_SERIES_SKEW  
@@ -1195,7 +1196,9 @@ class BatteryCharger {
             if (now_ts > minute_ts) { // one minute elapsed. 
 #endif USE_FAN_AMBIENT 
 #ifdef USE_FAN_AMBIENT
-            if ((now_ts > minute_ts) && (now_ts > STARTUP_FAN_TIMEOUT)) { // one minute elapsed, and we are past initial startup fan cooling phase             
+//            if ((now_ts > minute_ts) && (now_ts > STARTUP_FAN_TIMEOUT)) { // one minute elapsed, and we are past initial startup fan cooling phase             
+            if ((now_ts > minute_ts) && (now_ts > end_ts/100)) { // one minute elapsed, and we are past initial startup fan cooling phase             
+
 #endif USE_FAN_AMBIENT
 
 //             temperature = SimpleKalmanTemperature.updateEstimate(ntcTemperatureC(ReadMultiDecimated(pin_tbat,14),16384) - ntcTemperatureC(ReadMultiDecimated(NTC_ambient,14),16384));
@@ -1205,7 +1208,8 @@ class BatteryCharger {
               minute_ts += MINUTE_TS_REAL;
               
 #ifdef USE_FAN_AMBIENT // do not calculate temperature slope until we get enough recent averages - another 10 minutes of dead time. 
-              if (now_ts > (STARTUP_FAN_TIMEOUT*2)) {
+//              if (now_ts > STARTUP_FAN_TIMEOUT*2) {
+              if (now_ts > ((end_ts/100)*2)) {
               temperature_slope = temperature_avg - temperature_last;
               }
 #endif USE_FAN_AMBIENT
@@ -1237,7 +1241,8 @@ class BatteryCharger {
               }
               temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH-1] = temperature_slope;
 #ifdef USE_FAN_AMBIENT
-              if (now_ts > STARTUP_FAN_TIMEOUT) {
+//              if (now_ts > STARTUP_FAN_TIMEOUT) {
+              if (now_ts > (end_ts/100)) {
               fan_ambient_state = 0; 
                }
 #endif USE_FAN_AMBIENT
