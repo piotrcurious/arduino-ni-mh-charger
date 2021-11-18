@@ -33,6 +33,15 @@ currently it is set to quite high values.
 * kalman filter , either just for temp delta, or for all thermal sensors. 
   it provides less random swings than heavy averaging, allowing better detection of dT event 
 * LCD display 
+* IR modulated serial terminal display - for even cheaper display. 
+  now You can ditch LCD display completely. 
+  Just connect IR diode to D13 (via 100ohm) to transmit 36khz modulated 1200baud serial data.
+  connect 36khz IR demodulator (TSOP31236, can be ripped from old TV) to serial input of serial terminal, 
+  like VT100 or https://www.serasidis.gr/circuits/TV_terminal/Small_TV_terminal.htm (default)
+  You can either #define VT100_compatible_terminal
+  or #define ATMEGA8_TVTERM_TERMINAL. 
+  This way You can have many chargers for various sizes of batteries , and only one terminal/display. 
+  no cables. no fuss. 
 * few audio notification options up to choice (standard tone, newtone library (-1300k) , or 'dumbtone' - beeping without timers
 * most of extra functions got #ifdef'd , so one can strip most of non-essential stuff, allowing stuffing the charger code
   into attiny8, and still allowing two channels and ambient temp sensor!
@@ -110,4 +119,5 @@ Global variables use 1712 bytes (83%) of dynamic memory, leaving 336 bytes for l
   
   Have fun. 
   
-
+  
+  
