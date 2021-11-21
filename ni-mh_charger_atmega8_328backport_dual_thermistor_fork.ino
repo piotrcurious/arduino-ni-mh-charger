@@ -739,11 +739,9 @@ class BatteryCharger {
                 terminal_port.write(20);//Y pos
                 terminal_port.write(5);
 #endif ATMEGA8_TVTERM_TERMINAL
-
                 terminal_port.print(F("T2   "));
                 terminal_port.print(filter_update(ntcTemperatureC(ReadMultiDecimated(pin_tbat_b, 10), 1024, NTC_skew[(iid - 1) * 2 + 1]), 2), 3);
                 terminal_port.print(F("C"));
-
 #ifdef VT100_compatible_terminal
                 VT100.setCursor(6, 0);
 #endif VT100_compatible_terminal
@@ -753,12 +751,10 @@ class BatteryCharger {
                 terminal_port.write(20);//Y pos
                 terminal_port.write(6);
 #endif ATMEGA8_TVTERM_TERMINAL
-
                 // 1-NTCa, 2-NTCb, 3-ambNTCa, 4-ambNTCb, 5-(ntcA+ntcB)/2, 6-(ambNTCa+ambNTCb)/2, 7-deltaT
                 terminal_port.print(F("Ta1  "));
                 terminal_port.print(filter_update(ntcTemperatureC(ReadMultiDecimated(NTC_ambient_a, 10), 1024, NTC_ambient_skew_a), 3), 3);
                 terminal_port.print(F("C"));
-
 #ifdef VT100_compatible_terminal
                 VT100.setCursor(6, 20);
 #endif VT100_compatible_terminal
@@ -768,11 +764,9 @@ class BatteryCharger {
                 terminal_port.write(20);//Y pos
                 terminal_port.write(6);
 #endif ATMEGA8_TVTERM_TERMINAL
-
                 terminal_port.print(F("Ta2  "));
                 terminal_port.print(filter_update(ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024, NTC_ambient_skew_b), 4), 3);
                 terminal_port.print(F("C"));
-
 #ifdef VT100_compatible_terminal
                 VT100.setCursor(7, 0);
 #endif VT100_compatible_terminal
@@ -782,13 +776,11 @@ class BatteryCharger {
                 terminal_port.write(20);//Y pos
                 terminal_port.write(7);
 #endif ATMEGA8_TVTERM_TERMINAL
-
                 // 1-NTCa, 2-NTCb, 3-ambNTCa, 4-ambNTCb, 5-(ntcA+ntcB)/2, 6-(ambNTCa+ambNTCb)/2, 7-deltaT
                 terminal_port.print(F("Tavg "));
                 terminal_port.print(filter_update(((filter_update(ntcTemperatureC(ReadMultiDecimated(pin_tbat_a, 10), 1024, NTC_skew[(iid - 1) * 2]), 1)
                                                     + filter_update(ntcTemperatureC(ReadMultiDecimated(pin_tbat_b, 10), 1024, NTC_skew[(iid - 1) * 2 + 1]), 2)) / 2), 5), 3 );
                 terminal_port.print(F("C"));
-
 #ifdef VT100_compatible_terminal
                 VT100.setCursor(7, 20);
 #endif VT100_compatible_terminal
@@ -798,12 +790,10 @@ class BatteryCharger {
                 terminal_port.write(20);//Y pos
                 terminal_port.write(7);
 #endif ATMEGA8_TVTERM_TERMINAL
-
                 terminal_port.print(F("Taavg"));
                 terminal_port.print(filter_update(((filter_update(ntcTemperatureC(ReadMultiDecimated(NTC_ambient_a, 10), 1024, NTC_ambient_skew_a), 3)
                                                     + filter_update(ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024, NTC_ambient_skew_b), 4)) / 2), 6), 3 );
                 terminal_port.print(F("C"));
-
 #ifdef VT100_compatible_terminal
                 VT100.setCursor(8, 0);
 #endif VT100_compatible_terminal
@@ -813,17 +803,16 @@ class BatteryCharger {
                 terminal_port.write(20);//Y pos
                 terminal_port.write(8);
 #endif ATMEGA8_TVTERM_TERMINAL
-
                 // 1-NTCa, 2-NTCb, 3-ambNTCa, 4-ambNTCb, 5-(ntcA+ntcB)/2, 6-(ambNTCa+ambNTCb)/2, 7-deltaT
                 terminal_port.print(F("dT   "));
                 terminal_port.print(filter_update(temperature, 7));
                 terminal_port.print(F("C"));
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
-
 #endif USE_DOUBLE_THERMISTORS
 #endif USE_NTC_SERIES_SKEW
 
                 //---------------------------------------------------test of graph code for tvterm
+
 /*
 #ifdef USE_SOFTWARE_SERIAL_TERMINAL
 #ifdef VT100_compatible_terminal
@@ -832,18 +821,10 @@ class BatteryCharger {
 #ifdef ATMEGA8_TVTERM_TERMINAL
                 terminal_port.write(12); // clear screen
 #endif ATMEGA8_TVTERM_TERMINAL
-                for (uint8_t i = 0 ; i < 80; i++) {
-#ifdef VT100_compatible_terminal
-                  VT100.setCursor(GetVoltage(ReadMultiDecimated(pin_vbat, 10, true), 1024, VREF_Vbat), i );
-#endif VT100_compatible_terminal
+                for (uint8_t i = 0 ; i < 160; i++) {
 #ifdef ATMEGA8_TVTERM_TERMINAL
-                  terminal_port.write(19);//X pos
-                  terminal_port.write(i / 2);
-                  terminal_port.write(20);//Y pos
-                  terminal_port.write(24 - (GetVoltage(ReadMultiDecimated(pin_vbat, 10, true), 1024, VREF_Vbat)) * 10);
+                  tvterm_semigraphics_plot(i/2,(GetVoltage(ReadMultiDecimated(pin_vbat, 10, true), 1024, VREF_Vbat)) * 10);
 #endif ATMEGA8_TVTERM_TERMINAL
-                  // fixme - this may be negative and draw junk from buffer
-                  terminal_port.print(F("-"));
                 } // for (byte...
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
 */
@@ -1536,7 +1517,6 @@ class BatteryCharger {
                                     + filter_update(ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024, NTC_ambient_skew_b), 4)) / 2), 6)
                   ;
 #endif USE_DOUBLE_THERMISTORS
-
 #endif USE_NTC_SERIES_SKEW
 #ifndef USE_NTC_SERIES_SKEW
 #ifndef USE_DOUBLE_THERMISTORS
@@ -1673,7 +1653,6 @@ class BatteryCharger {
                 //            voltage_ibat = GetVoltage(ReadMultiDecimated(pin_ibat,10), 1024);
                 voltage_vbat = GetVoltage(ReadMultiDecimated(pin_vbat, 12, true), 4096, VREF_Vbat);
                 voltage_ibat = GetVoltage(ReadMultiDecimated(pin_ibat, 12), 4096);
-
                 current = (voltage_ibat - voltage_vbat) / SHUNT_RESISTOR;
                 //            current_avg = (11 * current_avg + current) / 12; do not include rough estimate in stats, it will be corrected and measured in right place
 #endif USE_EXTRA_SMOOTH_PWM // try to do extra regulation step. 
@@ -1939,6 +1918,8 @@ class BatteryCharger {
                             }
                             temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] = temperature_slope;
                             if (abs(temperature_slope) > 0.008) { // increase sensitivity for temperature events of rate higher than 0.008C/min
+                                                                  // FIXME : de-obscurise this coefficient!
+                                                                  // TODO : add more noise-reduction and amplification of nonlinear features                              
                               temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] += temperature_slope;
                             }
 #ifdef USE_FAN_AMBIENT
@@ -1959,18 +1940,18 @@ class BatteryCharger {
 #ifdef ATMEGA8_TVTERM_TERMINAL
                               terminal_port.write(12); // clear screen
 #endif ATMEGA8_TVTERM_TERMINAL
-                              for (int16_t i = TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 81 ; i < TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1; i ++) {
-                                //   ARBITRARY width of terminal window *2... if temperature slope buffer is shorter than terminal window, it will generate negative numbers, thus int.
-                                if (i >= 0 ) { // so we throw away all negative results
+                              for (uint8_t i = 0 ; i < TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1; i ++) {                   //FIXME : decltype( but then also strip const.             
 #ifdef VT100_compatible_terminal
-                                  VT100.setCursor((temperature_slope_sequence[i] * 100) + 2, (i - TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 81) / 2 );
+                                  VT100.setCursor((temperature_slope_sequence[i] * 100) + 2, i / (float)(TEMPERATURE_SLOPE_SEQUENCE_LENGTH / 40) );
 #endif VT100_compatible_terminal
 #ifdef ATMEGA8_TVTERM_TERMINAL
-                                  terminal_port.write(19);//X pos
-                                  terminal_port.write((i - (TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 81)) / 2);
-                                  terminal_port.write(20);//Y pos
-                                  terminal_port.write(24 - ((temperature_slope_sequence[i] * 100) + 2));
+//                                  terminal_port.write(19);//X pos
+//                                  terminal_port.write((i - (TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 81)) / 2);
+//                                  terminal_port.write(20);//Y pos
+//                                  terminal_port.write(24 - ((temperature_slope_sequence[i] * 100) + 2));
+                                  tvterm_semigraphics_plot(i/(TEMPERATURE_SLOPE_SEQUENCE_LENGTH/80.0),((temperature_slope_sequence[i] * 300) + 2)); 
 #endif ATMEGA8_TVTERM_TERMINAL
+#ifndef ATMEGA8_TVTERM_TERMINAL
                                   // fixme - this may be negative and draw junk from buffer
                                   if (temperature_slope_sequence[i - 1] > temperature_slope_sequence[i]) {
                                     terminal_port.print(F("="));
@@ -1980,8 +1961,8 @@ class BatteryCharger {
                                   }
                                   if (temperature_slope_sequence[i - 1] = temperature_slope_sequence[i]) {
                                     terminal_port.print(F("-"));
-                                  }
-                                } // if( i=>0 ) {
+                                  } 
+#endif ATMEGA8_TVTERM_TERMINAL
                               } // for (byte...
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
 
@@ -2232,7 +2213,9 @@ class BatteryCharger {
                               terminal_port.write(20);//Y pos
                               terminal_port.write((byte)0x00);
 #endif ATMEGA8_TVTERM_TERMINAL
-                              terminal_port.print(F("Waiting for temperature to settle..."));
+                              terminal_port.print(F("Stabilising mode: "));
+                              terminal_port.print( ((end_ts/80)-now_ts) );
+                              terminal_port.print(F("         "));
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
 
                             }
@@ -2394,10 +2377,18 @@ class BatteryCharger {
                             VT100.setCursor(2, 20);
 #endif VT100_compatible_terminal
 #ifdef ATMEGA8_TVTERM_TERMINAL
+                            terminal_port.write(18); // send cursor off just to make sure something is sent
+                            
                             terminal_port.write(19);//X pos
                             terminal_port.write(20);
                             terminal_port.write(20);//Y pos
                             terminal_port.write(2);
+//twice to be sure because this is first message and is garbled for some reason
+                            terminal_port.write(19);//X pos
+                            terminal_port.write(20);
+                            terminal_port.write(20);//Y pos
+                            terminal_port.write(2);
+
 #endif ATMEGA8_TVTERM_TERMINAL
                             terminal_port.print(F("Tamb:"));
                             terminal_port.print(filter_update(((filter_update(ntcTemperatureC(ReadMultiDecimated(NTC_ambient_a, 10), 1024, NTC_ambient_skew_a), 3)
@@ -2448,10 +2439,13 @@ class BatteryCharger {
 
                             //------------------------------------temperature scroll 0x25 println
 #ifdef USE_SOFTWARE_SERIAL_TERMINAL
+                            if (temperature_scroll == 20 || temperature_scroll == 40 || temperature_scroll == 60) {
+                              tvterm_semigraphics_plot(voltage_vbat*80-80,2+(temperature_scroll/20));
+                            }
+
                             if (temperature_scroll-- == 0 ) {
-
                               temperature_scroll = 60;
-
+                            tvterm_semigraphics_plot_init();
 #ifdef VT100_compatible_terminal
                               VT100.setCursor(24, 5 + (temperature_avg * 10));
 #endif VT100_compatible_terminal
@@ -2692,8 +2686,115 @@ class BatteryCharger {
                     }
 
                   }
-
+//--------------------------------------------do you dare to touch private parts? 
 private:
+
+
+#ifdef ATMEGA8_TVTERM_TERMINAL // for atmega8 based TV TERM , author : https://www.serasidis.gr/circuits/TV_terminal/Small_TV_terminal.htm
+        // it uses 2x3 semigraphics in the charset, with 0b01xxyyzz encoding. x y z being rows . 
+//------------------tvterm semigraphics plot routine. 
+// it tries to plot basing on previously plot dots, as we cannot read back from the screen. 
+// it will work fine for plots around certain area, otherwise it will cause artifacts. 
+// this is fine for f.e. drawing continous line graph, or transferring bitmap image from buffer using chunks . 
+static const uint8_t plot_backlog_depth = 16; //how many plots back we do remember. 6 should be enough, but as not all plots occur in same spot, 8 is safer. 
+uint16_t plot_backlog_data[plot_backlog_depth]; // array of backlog data. uint16 because one could switch to large emulated screens, 
+                                                // but in reality you could chop everything to 8bit. TODO: make it ifdef option. 
+void tvterm_semigraphics_plot_init(){ 
+for (uint8_t i = 0 ; i < plot_backlog_depth-1; i++ ) {
+plot_backlog_data[i]=0; 
+} // clear_buffer
+
+}
+
+void tvterm_semigraphics_plot(uint16_t x, uint16_t y){ 
+uint8_t plot_semigraphic_buffer = 0; 
+for (uint8_t i = 0 ; i < plot_backlog_depth-1; i=i+2 ) {
+plot_backlog_data[i]=plot_backlog_data[i+2]; 
+plot_backlog_data[i+1]=plot_backlog_data[i+3];
+} // ring buffer
+plot_backlog_data[plot_backlog_depth-2]= x;
+plot_backlog_data[plot_backlog_depth-1]= y; // store last x and y values
+
+plot_semigraphic_buffer = 0b10000000 ;// initalise printout buffer for semigraphics character...
+
+for (uint8_t i = 0 ; i < plot_backlog_depth-1; i=i+2 ) { // merge all plots from same x/2 and y/3 cells, matching current x/y coord
+if ((plot_backlog_data[i] == x) && ( x % 2 == 0)){ // if x mod 2 is = then this is even column
+ if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+  if ( (plot_backlog_data[i+1] % 3) == 0  ){ // 1 row semi of even column
+    plot_semigraphic_buffer |= 0b00100000; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 1  ){ // 2 row semi of even column
+    plot_semigraphic_buffer |= 0b00001000; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 2  ){ // 3 row semi of even column
+    plot_semigraphic_buffer |= 0b00000010; 
+  }
+ }//if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+
+} 
+
+if ((plot_backlog_data[i] == (x+1)) && (x % 2 == 0)){ // if x mod 2 is = then this is odd column 
+ if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+  if ( (plot_backlog_data[i+1] % 3) == 0  ){ // 1 row semi of odd column
+    plot_semigraphic_buffer |= 0b00010000; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 1  ){ // 2 row semi of odd column
+    plot_semigraphic_buffer |= 0b00000100; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 2  ){ // 3 row semi of odd column
+    plot_semigraphic_buffer |= 0b00000001; 
+  }
+ }//if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+
+} 
+
+if ((plot_backlog_data[i] == x) && (x % 2 != 0)){ // if x mod 2 is not then this is odd column
+ if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+  if ( (plot_backlog_data[i+1] % 3) == 0  ){ // 1 row semi of odd column
+    plot_semigraphic_buffer |= 0b00010000; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 1  ){ // 2 row semi of odd column
+    plot_semigraphic_buffer |= 0b00000100; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 2  ){ // 3 row semi of odd column
+    plot_semigraphic_buffer |= 0b00000001; 
+  }
+ }//if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+
+} 
+
+if (((plot_backlog_data[i]+1) == x) && (x % 2 != 0)){ // if x mod 2 is not, but backlog is -1 then this is even column
+ if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+  if ( (plot_backlog_data[i+1] % 3) == 0  ){ // 1 row semi of even column
+    plot_semigraphic_buffer |= 0b00100000; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 1  ){ // 2 row semi of even column
+    plot_semigraphic_buffer |= 0b00001000; 
+  }
+  if ( (plot_backlog_data[i+1] % 3) == 2  ){ // 3 row semi of even column
+    plot_semigraphic_buffer |= 0b00000010; 
+  }
+ }//if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
+
+} 
+
+}// for (uint8_t i=0; ... 
+                  terminal_port.write(19);//X pos
+                  terminal_port.write(x / 2);
+                  terminal_port.write(20);//Y pos
+                  terminal_port.write(24 - (y / 3)); // fixme - hardcoded 24 . how to deal with different screen size?
+if(( ( (24-(y/3))<24) || (x/2)<39) )terminal_port.write(plot_semigraphic_buffer);  // fixme - hardcoded avoiding of 24x40 spot, as writing there causes screen to scroll up. 
+//                  terminal_port.write(19);//X pos
+//                  terminal_port.write(x / 2);
+//                  terminal_port.write(20);//Y pos
+//                  terminal_port.write(24);
+//terminal_port.write(plot_semigraphic_buffer); 
+
+}// void tvterm_semigraphics_plot(...
+
+//---------------------------------end of tvterm semigraphics
+#endif ATMEGA8_TVTERM_TERMINAL // 
+
 
                   //    /// reads and accumulates multiple samples and decimates the result
                   //    static uint16_t ReadMultiDecimated(uint8_t pin, uint8_t bits = 16, bool vref_internal = false) {
@@ -3014,7 +3115,7 @@ private:
                       /// thermistor probe
                       //    NTCThermistor ntc;
 #ifdef USE_SOFTWARE_SERIAL_TERMINAL
-                      uint8_t temperature_scroll = 255 ;
+                      uint8_t temperature_scroll = 12 ;
 #endif USE_SOFTWARE_SERIAL_TERMINAL
 
                     }; //switch (state) {
