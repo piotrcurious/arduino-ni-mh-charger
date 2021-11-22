@@ -356,7 +356,7 @@ static const uint8_t MAX_STATIC_TEMPERATURE_DELTA = 4 ; // if battery temperatur
 static const uint16_t STABILIZATION_PERIOD = 5000;
 #endif USE_DYNAMIC_KALMAN_FOR_TEMPERATURE
 #ifdef USE_DYNAMIC_KALMAN_FOR_TEMPERATURE // Thanks to Dynamic Kalman it is possible to detect smaller temperature deltas wihout false positives
-static const float MAX_CUMULATIVE_TEMPERATURE_INCREASE = 1.5; // if we detect delta T of such magnitude across sliding window, end charge
+static const float MAX_CUMULATIVE_TEMPERATURE_INCREASE = 1; // if we detect delta T of such magnitude across sliding window, end charge
 static const uint8_t MAX_STATIC_TEMPERATURE_DELTA = 2 ; // if battery temperature delta over ambient T exceeds this amount , end charge
 static const uint16_t STABILIZATION_PERIOD = 30000;
 #endif USE_DYNAMIC_KALMAN_FOR_TEMPERATURE
@@ -1903,25 +1903,40 @@ class BatteryCharger {
                             }
 
                             bCorrectSequence = 0;
-                            for (byte i = 0; i < TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1; i ++) {
+                            for (byte i = 0; i < TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1; i ++) { // calculate integral of buffered Tslope events
                               //
                               if (temperature_slope_sequence[i] < temperature_slope_sequence[i + 1]) {
                                 bCorrectSequence  += temperature_slope_sequence[i];  // this is positive slope in positive slope event , recorded twice
                               }
-                              bCorrectSequence += temperature_slope_sequence[i] ; // this is normal positive slope event.
+                              bCorrectSequence += temperature_slope_sequence[i] ; // this is normal slope event.
                               //                if (temperature_slope_sequence[i] < 0) {
                               //                  //
                               //                  bCorrectSequence  -= temperature_slope_sequence[i] ;  // all negative slopes get accumulated twice too
                               //                } // no idea how this ever worked...
-
-                              temperature_slope_sequence[i] = temperature_slope_sequence[i + 1];
+                              temperature_slope_sequence[i] = temperature_slope_sequence[i + 1]; // move the ring buffer
                             }
-                            temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] = temperature_slope;
-                            if (abs(temperature_slope) > 0.008) { // increase sensitivity for temperature events of rate higher than 0.008C/min
+
+                            //update the base of last position in the ring buffer
+                            if (abs(temperature_slope) < 0.01) {      // noise reduction 
+                            temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] = temperature_slope/2.0; // attentuate for variations below 0.01C/min
+                            } else {
+                              temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] = temperature_slope;   // normal for above 0.01C/min
+                            }
+
+                            if (abs(temperature_slope) > 0.02) { // double sensitivity for temperature events of rate higher than 0.02C/min
                                                                   // FIXME : de-obscurise this coefficient!
                                                                   // TODO : add more noise-reduction and amplification of nonlinear features                              
-                              temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] += temperature_slope;
+                              temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] += temperature_slope;                           
                             }
+ 
+                            if (abs(temperature_slope) > 0.05) { // nonlinear for temperature events of rate higher than 0.01C/min
+                                                                  // FIXME : de-obscurise this coefficient!
+                                                                  // TODO : add more noise-reduction and amplification of nonlinear features                              
+                              temperature_slope_sequence[TEMPERATURE_SLOPE_SEQUENCE_LENGTH - 1] += temperature_slope*10;                           
+                            }
+
+
+                            
 #ifdef USE_FAN_AMBIENT
                             //              if (now_ts > STARTUP_FAN_TIMEOUT) {
                             if (now_ts > (end_ts / 80)) {
@@ -1994,7 +2009,7 @@ class BatteryCharger {
                               terminal_port.print(F("dT=:"));
                               terminal_port.print(bCorrectSequence, 2);
                               terminal_port.print(F("C Capacity in:"));
-                              terminal_port.print(capacity_in, 0);
+                              terminal_port.print((long)capacity_in, 1);
                               terminal_port.print(F("mAh"));
 
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
@@ -2002,7 +2017,7 @@ class BatteryCharger {
 #ifdef USE_LCD
 #ifdef LCD_VERBOSE
                               lcd.setCursor(0, iid - 1);
-                              lcd.print(capacity_in, 0);
+                              lcd.print((long)capacity_in, 0);
                               lcd.print(F("mAh dT="));
                               //         1234567890123456
                               lcd.print(bCorrectSequence, 1);
@@ -2026,7 +2041,6 @@ class BatteryCharger {
                             //better precision measurement for stats and graphs
                             //            value_vbat = ReadMultiDecimated_1_1(pin_vbat,15);
                             //            voltage_vbat = GetVoltage(value_vbat, 32768,VREF_Vbat);
-
                             voltage_vbat = GetVoltage(ReadMultiDecimated(pin_vbat, 12, true), 4096, VREF_Vbat);
                             //            value_ibat = ReadMultiDecimated(pin_ibat,15);
                             //            voltage_ibat = GetVoltage(value_ibat, 32768);
@@ -2038,7 +2052,9 @@ class BatteryCharger {
                             current_avg = (11 * current_avg + current) / 12;
                             //               }
 
-                            capacity_in = (double)(now_ts - start_ts) * current_avg / 3600;
+//                            capacity_in = (double)(now_ts - start_ts) * current_avg / 3600;
+//                            capacity_in = (double)(now_ts - start_ts)/3600 * current_avg ; // bit optimised for faster divide
+                            capacity_in += (double)1.388888889 * current_avg ; // 5000/3600=1.388888889, last 5 seconds worth of average current, cumulative integration 
 
                             // ---------------------------------temperature reading code
 
@@ -2064,8 +2080,7 @@ class BatteryCharger {
                               ((ntcTemperatureC(ReadMultiDecimated(pin_tbat_a, 10), 1024, NTC_skew[(iid - 1) * 2])
                                 + ntcTemperatureC(ReadMultiDecimated(pin_tbat_b, 10), 1024, NTC_skew[(iid - 1) * 2 + 1])) / 2)
                               - ((ntcTemperatureC(ReadMultiDecimated(NTC_ambient_a, 10), 1024, NTC_ambient_skew_a)
-                                  + ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024, NTC_ambient_skew_b)) / 2)
-                              ;
+                                  + ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024, NTC_ambient_skew_b)) / 2);
 #endif USE_DOUBLE_THERMISTORS
 #endif USE_NTC_SERIES_SKEW
 #ifndef USE_NTC_SERIES_SKEW
@@ -2077,8 +2092,7 @@ class BatteryCharger {
                               ((ntcTemperatureC(ReadMultiDecimated(pin_tbat_a, 10), 1024)
                                 + ntcTemperatureC(ReadMultiDecimated(pin_tbat_b, 10), 1024)) / 2)
                               - ((ntcTemperatureC(ReadMultiDecimated(NTC_ambient_a, 10), 1024)
-                                  + ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024)) / 2)
-                              ;
+                                  + ntcTemperatureC(ReadMultiDecimated(NTC_ambient_b, 10), 1024)) / 2);
 #endif USE_DOUBLE_THERMISTORS
 #endif USE_NTC_SERIES_SKEW
 #ifdef USE_NTC_COOLING
@@ -2162,7 +2176,6 @@ class BatteryCharger {
 #endif USE_DOUBLE_THERMISTORS
 #endif USE_NTC_COOLING
 #endif USE_DYNAMIC_KALMAN_FOR_TEMPERATURE
-
                             if (temperature > MAX_STATIC_TEMPERATURE_DELTA) {
                               // temperature too high for high current charging
 #ifdef SERIAL_DEBUG_EVENTS
@@ -2173,7 +2186,7 @@ class BatteryCharger {
 #ifdef USE_LCD
 #ifdef LCD_VERBOSE
                               lcd.setCursor(0, iid - 1);
-                              lcd.print(capacity_in, 0);
+                              lcd.print((long)capacity_in, 0);
                               lcd.print(F("mAh Tbat="));
 
                               //              lcd.print(F("T too high "));
@@ -2219,9 +2232,7 @@ class BatteryCharger {
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
 
                             }
-
 #endif USE_FAN_AMBIENT
-
                             voltage_drop = (voltage_drop * 11 + (voltage_max - voltage_vbat_avg)) / 12;
 
                             if (temperature_avg == 0) {
@@ -2241,7 +2252,6 @@ class BatteryCharger {
                               temperature_avg = filter_update(temperature, 7) ; //1-NTCa , 2-NTCb, 3-ambNTCa, 4-ambNTCb, 5-(NTCa+NTCb)/2, 6-(ambNTCa+ambNTCb)/2, 7- deltaT
 #endif USE_DOUBLE_THERMISTORS
 #endif USE_DYNAMIC_KALMAN_FOR_TEMPERATURE
-
 
 #ifndef USE_KALMAN_FOR_TEMPERATURE
 #ifndef USE_DYNAMIC_KALMAN_FOR_TEMPERATURE
@@ -2268,7 +2278,7 @@ class BatteryCharger {
 #ifdef LCD_VERBOSE
                               lcd.setCursor(0, iid - 1);
                               //              lcd.print(F("-dV="));
-                              lcd.print(capacity_in, 0);
+                              lcd.print((long)capacity_in, 0);
                               lcd.print(F("mAh -dV="));
                               //         1234567890123456
                               lcd.print(voltage_drop, 4);
@@ -2329,7 +2339,7 @@ class BatteryCharger {
                             Serial.print(F("dSlope[t] = "));
                             Serial.print(bCorrectSequence, 2);
                             Serial.print(F(" ; Cout = "));
-                            Serial.print(capacity_in, 3);
+                            Serial.print((long)capacity_in, 3);
                             Serial.print(F(" mAh"));
                             Serial.print(F(" ;Ierr = "));
                             Serial.print(current_current - current_avg, 6);
@@ -2431,7 +2441,7 @@ class BatteryCharger {
 
 #ifdef USE_LCD
                             lcd.setCursor(0, iid - 1);
-                            lcd.print(capacity_in, 0);
+                            lcd.print((long)capacity_in, 0);
                             lcd.print(F("mAh "));
                             lcd.print(voltage_vbat, 3);
                             lcd.print(F("V "));
@@ -2488,7 +2498,7 @@ class BatteryCharger {
                             terminal_port.write(1);
 #endif ATMEGA8_TVTERM_TERMINAL
                             //terminal_port.print(F(""));
-                            terminal_port.print(capacity_in, 0);
+                            terminal_port.print((long)capacity_in, 1);
                             terminal_port.print(F("mAh "));
 #endif  USE_SOFTWARE_SERIAL_TERMINAL
 
@@ -2691,14 +2701,14 @@ private:
 
 
 #ifdef ATMEGA8_TVTERM_TERMINAL // for atmega8 based TV TERM , author : https://www.serasidis.gr/circuits/TV_terminal/Small_TV_terminal.htm
+#define ATMEGA8_TVTERM_SCREEN_SIZE uint8_t // define max screen size. 8bit = 256x256, 16bit = 65535x65535 . TVTerminal does not accept 16bit cursor pos anyway. 
         // it uses 2x3 semigraphics in the charset, with 0b01xxyyzz encoding. x y z being rows . 
 //------------------tvterm semigraphics plot routine. 
 // it tries to plot basing on previously plot dots, as we cannot read back from the screen. 
 // it will work fine for plots around certain area, otherwise it will cause artifacts. 
 // this is fine for f.e. drawing continous line graph, or transferring bitmap image from buffer using chunks . 
-static const uint8_t plot_backlog_depth = 16; //how many plots back we do remember. 6 should be enough, but as not all plots occur in same spot, 8 is safer. 
-uint16_t plot_backlog_data[plot_backlog_depth]; // array of backlog data. uint16 because one could switch to large emulated screens, 
-                                                // but in reality you could chop everything to 8bit. TODO: make it ifdef option. 
+static const uint8_t plot_backlog_depth = 24; //how many plots back we do remember. 6 should be enough, but as not all plots occur in same spot, 8 is safer. 
+ATMEGA8_TVTERM_SCREEN_SIZE plot_backlog_data[plot_backlog_depth]; // array of backlog data.   
 void tvterm_semigraphics_plot_init(){ 
 for (uint8_t i = 0 ; i < plot_backlog_depth-1; i++ ) {
 plot_backlog_data[i]=0; 
@@ -2706,7 +2716,7 @@ plot_backlog_data[i]=0;
 
 }
 
-void tvterm_semigraphics_plot(uint16_t x, uint16_t y){ 
+void tvterm_semigraphics_plot(ATMEGA8_TVTERM_SCREEN_SIZE x, ATMEGA8_TVTERM_SCREEN_SIZE y){ 
 uint8_t plot_semigraphic_buffer = 0; 
 for (uint8_t i = 0 ; i < plot_backlog_depth-1; i=i+2 ) {
 plot_backlog_data[i]=plot_backlog_data[i+2]; 
@@ -2760,7 +2770,6 @@ if ((plot_backlog_data[i] == x) && (x % 2 != 0)){ // if x mod 2 is not then this
     plot_semigraphic_buffer |= 0b00000001; 
   }
  }//if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
-
 } 
 
 if (((plot_backlog_data[i]+1) == x) && (x % 2 != 0)){ // if x mod 2 is not, but backlog is -1 then this is even column
@@ -2775,7 +2784,6 @@ if (((plot_backlog_data[i]+1) == x) && (x % 2 != 0)){ // if x mod 2 is not, but 
     plot_semigraphic_buffer |= 0b00000010; 
   }
  }//if (plot_backlog_data[i+1] / 3  == y / 3 ) { // if we are in same y row
-
 } 
 
 }// for (uint8_t i=0; ... 
@@ -3080,7 +3088,7 @@ if(( ( (24-(y/3))<24) || (x/2)<39) )terminal_port.write(plot_semigraphic_buffer)
                       float current_current ;
                       /// determined powers
 
-                      float capacity_in ;
+                      long double capacity_in ;
 #ifdef DISCHARGER
                       float capacity_out ;
 #endif DISCHARGER
