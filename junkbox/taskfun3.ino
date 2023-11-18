@@ -20,7 +20,6 @@ Kalman filter3;
 // Create Kalman filter objects for the deltas of each sensor temp and the ambient temp
 Kalman delta1;
 Kalman delta2;
-Kalman delta3;
 
 // Declare global variables for the temperature readings and the filtered values
 // Use syncVar to synchronize access to shared variables
@@ -29,8 +28,8 @@ syncVar<float> filtered1, filtered2, filtered3;
 
 // Declare global variables for the deltas and the filtered deltas
 // Use syncVar to synchronize access to shared variables
-syncVar<float> delta1, delta2, delta3;
-syncVar<float> filtered_delta1, filtered_delta2, filtered_delta3;
+syncVar<float> delta1, delta2;
+syncVar<float> filtered_delta1, filtered_delta2;
 
 // Declare a global variable for the ambient temperature effect
 // Use syncVar to synchronize access to shared variables
@@ -87,7 +86,6 @@ void read_temps() {
   // Calculate the deltas of each sensor temp and the ambient temp
   delta1 = temp1 - temp3;
   delta2 = temp2 - temp3;
-  delta3 = temp3 - temp3;
 }
 
 // Define the function that filters the temperatures
@@ -109,7 +107,6 @@ void filter_temps() {
   // Use the ambient_effect to reduce the Kalman gain only for the deltas
   filtered_delta1 = delta1.updateEstimate(delta1, 0.1 * (1 - ambient_effect), 0.1);
   filtered_delta2 = delta2.updateEstimate(delta2, 0.1 * (1 - ambient_effect), 0.1);
-  filtered_delta3 = delta3.updateEstimate(delta3, 0.1, 0.1);
 
   // Print the filtered values and the filtered deltas to the serial monitor
   Serial.print("Filtered1: ");
@@ -122,6 +119,6 @@ void filter_temps() {
   Serial.print(filtered_delta1);
   Serial.print(" Filtered_delta2: ");
   Serial.print(filtered_delta2);
-  Serial.print(" Filtered_delta3: ");
-  Serial.println(filtered_delta3);
+  Serial.print(" ambient_effect: ");
+  Serial.println(ambient_effect);
 }
