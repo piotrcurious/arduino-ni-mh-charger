@@ -54,12 +54,13 @@ void setup() {
 
   // Initialize the ambient temperature effect
   ambient_effect = 0;
-}
-
-void loop() {
   // Run the tasks
   read_task.run();
   filter_task.run();
+  
+}
+
+void loop() {
 }
 
 // Define the function that reads the temperatures
