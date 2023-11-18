@@ -23,15 +23,18 @@ Kalman delta2;
 Kalman delta3;
 
 // Declare global variables for the temperature readings and the filtered values
-float temp1, temp2, temp3;
-float filtered1, filtered2, filtered3;
+// Use syncVar to synchronize access to shared variables
+syncVar<float> temp1, temp2, temp3;
+syncVar<float> filtered1, filtered2, filtered3;
 
 // Declare global variables for the deltas and the filtered deltas
-float delta1, delta2, delta3;
-float filtered_delta1, filtered_delta2, filtered_delta3;
+// Use syncVar to synchronize access to shared variables
+syncVar<float> delta1, delta2, delta3;
+syncVar<float> filtered_delta1, filtered_delta2, filtered_delta3;
 
 // Declare a global variable for the ambient temperature effect
-float ambient_effect;
+// Use syncVar to synchronize access to shared variables
+syncVar<float> ambient_effect;
 
 // Declare a function prototype for the task that reads the temperatures
 void read_temps();
