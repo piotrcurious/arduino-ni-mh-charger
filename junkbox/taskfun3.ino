@@ -54,6 +54,10 @@ void setup() {
 
   // Initialize the ambient temperature effect
   ambient_effect = 0;
+
+  
+  // Initialize the tasks by calling setupTasks()
+  setupTasks();
   // Run the tasks
   read_task.run();
   filter_task.run();
